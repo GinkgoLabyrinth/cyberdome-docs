@@ -48,6 +48,7 @@
   #svgwrap.drag{cursor:grabbing}
   #plan{width:100%;height:100%;display:block}
   #plan.nolbl text, #plan.nolbl .dim{display:none}
+  #plan.noxps .xps{display:none}
   .hint{position:absolute;left:12px;bottom:12px;color:var(--mute);font-size:12px;z-index:5;background:rgba(255,255,255,.85);padding:3px 7px;border-radius:5px}
   @media (max-width:760px){
     header{padding:8px 10px;gap:6px 10px}
@@ -89,7 +90,7 @@
       <button id="allLbl">Подписи во всех секторах</button>
       <button id="legBtn">Обозначения</button>
       <button id="pierBtn" class="on">Опоры</button>
-      <button id="xpsBtn" class="on">XPS</button>
+      <button id="xpsBtn">XPS</button>
     </div>
     <div class="legend">
       <h3>Элементы</h3>
@@ -111,6 +112,7 @@
     <div class="tools">
       <button id="fitBtn">Весь план</button>
       <button id="planLbl" class="on">Подписи</button>
+      <button id="planXps">XPS</button>
       <button id="zoomSec">Сектор крупно</button>
     </div>
     <div class="hint">Приближение — колесо или +/− · сдвиг — перетаскивание</div>
@@ -1570,7 +1572,7 @@ document.getElementById('lblBtn').onclick=e=>{ lblOn=!lblOn; e.target.classList.
   showGroup(labels,lblOn); showGroup(allSec,allOn&&lblOn); showGroup(xpsLbl,xpsOn&&lblOn); pierLabels(pierOn&&lblOn); };
 let pierOn=true; document.getElementById('pierBtn').onclick=e=>{ pierOn=!pierOn; showGroup(piers,pierOn); pierLabels(pierOn&&lblOn); e.target.classList.toggle('on'); };
 setCam('iso'); showGroup(allSec,false);
-let xpsOn=true; document.getElementById('xpsBtn').onclick=e=>{ xpsOn=!xpsOn; xpsG.visible=xpsOn; showGroup(xpsLbl,xpsOn&&lblOn); e.target.classList.toggle('on'); };
+let xpsOn=false; xpsG.visible=false; showGroup(xpsLbl,false); document.getElementById('xpsBtn').onclick=e=>{ xpsOn=!xpsOn; xpsG.visible=xpsOn; showGroup(xpsLbl,xpsOn&&lblOn); e.target.classList.toggle('on'); };
 
 function resize(){
   const w=host.clientWidth, h=host.clientHeight; if(!w||!h) return;
@@ -1611,11 +1613,11 @@ const g0 = el('g',{});
   const cells=[[0.45, rs[0]*CS-T/2]]; for(let k=0;k<rs.length-1;k++) cells.push([rs[k]*CS+T/2, rs[k+1]*CS-T/2]);
   for(let i=0;i<N;i++){ const am=ang(i)+DA/2, ux=Math.cos(am), uy=-Math.sin(am), vx=-uy, vy=ux;
     cells.forEach(([d1,d2])=>{ const p=[[d1,-cw(d1)/2],[d2,-cw(d2)/2],[d2,cw(d2)/2],[d1,cw(d1)/2]].map(([d,o])=>[S(d*ux+o*vx),S(d*uy+o*vy)].join(',')).join(' ');
-      el('polygon',{points:p,fill:'#d6eaf6',stroke:'#7fb1d3','stroke-width':4},g0); }); }
+      el('polygon',{points:p,fill:'#d6eaf6',stroke:'#7fb1d3','stroke-width':4,class:'xps'},g0); }); }
   // подписи ячеек в секторе 1
   const am=ang(1)+DA/2;
   cells.slice(1).forEach(([d1,d2])=>{ const dm=(d1+d2)/2; const x=S(dm*Math.cos(am)), y=-S(dm*Math.sin(am));
-    txt(`XPS ${fmt(d2-d1)} × ${fmt(cw(d1))}–${fmt(cw(d2))}`, x, y, 55, {rot:readable(-(am*180/Math.PI)+90), fill:'#2f6f9a', w:600, halo:true}); });
+    txt(`XPS ${fmt(d2-d1)} × ${fmt(cw(d1))}–${fmt(cw(d2))}`, x, y, 55, {rot:readable(-(am*180/Math.PI)+90), fill:'#2f6f9a', w:600, halo:true}).setAttribute('class','xps'); });
 }
 // полки (пунктир) и стенки лучей
 for(let i=0;i<N;i++){
@@ -1690,6 +1692,8 @@ const setVB=()=>svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
 const fit=()=>{vb={x:-5700,y:-5700,w:11400,h:11400};setVB();};
 fit();
 document.getElementById('fitBtn').onclick=fit;
+svg.classList.add('noxps');
+document.getElementById('planXps').onclick=e=>{ svg.classList.toggle('noxps'); e.target.classList.toggle('on'); };
 document.getElementById('planLbl').onclick=e=>{ svg.classList.toggle('nolbl'); e.target.classList.toggle('on'); };
 document.getElementById('zoomSec').onclick=()=>{vb={x:-1700,y:-5000,w:3400,h:4300};setVB();};
 const wrapEl=document.getElementById('svgwrap');
