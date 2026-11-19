@@ -47,6 +47,7 @@
   #svgwrap{background:#fff;cursor:grab;touch-action:none}
   #svgwrap.drag{cursor:grabbing}
   #plan{width:100%;height:100%;display:block}
+  #plan.nolbl text, #plan.nolbl .dim{display:none}
   .hint{position:absolute;left:12px;bottom:12px;color:var(--mute);font-size:12px;z-index:5;background:rgba(255,255,255,.85);padding:3px 7px;border-radius:5px}
   @media (max-width:760px){
     header{padding:8px 10px;gap:6px 10px}
@@ -84,6 +85,7 @@
       <button data-cam="sector">Сектор крупно</button>
       <button data-cam="center">Центр</button>
       <button data-cam="brace">Укосины</button>
+      <button id="lblBtn" class="on">Подписи</button>
       <button id="allLbl">Подписи во всех секторах</button>
       <button id="legBtn">Обозначения</button>
       <button id="pierBtn" class="on">Опоры</button>
@@ -108,6 +110,7 @@
     <div id="svgwrap" style="position:absolute;inset:0"><svg id="plan" xmlns="http://www.w3.org/2000/svg"></svg></div>
     <div class="tools">
       <button id="fitBtn">Весь план</button>
+      <button id="planLbl" class="on">Подписи</button>
       <button id="zoomSec">Сектор крупно</button>
     </div>
     <div class="hint">Приближение — колесо или +/− · сдвиг — перетаскивание</div>
@@ -1560,10 +1563,14 @@ const presets = {
 };
 function setCam(k){ const s=presets[k]; cam.position.set(...s.p); controls.target.set(...s.t); controls.update(); }
 document.querySelectorAll('[data-cam]').forEach(b=>b.onclick=()=>setCam(b.dataset.cam));
-let allOn=false; document.getElementById('allLbl').onclick=e=>{ allOn=!allOn; showGroup(allSec,allOn); e.target.classList.toggle('on'); };
-let pierOn=true; document.getElementById('pierBtn').onclick=e=>{ pierOn=!pierOn; showGroup(piers,pierOn); e.target.classList.toggle('on'); };
+let allOn=false, lblOn=true;
+function pierLabels(v){ piers.children.forEach(o=>{ if(o.isCSS2DObject){ o.visible=v; o.element.style.display=v?'':'none'; } }); }
+document.getElementById('allLbl').onclick=e=>{ allOn=!allOn; showGroup(allSec,allOn&&lblOn); e.target.classList.toggle('on'); };
+document.getElementById('lblBtn').onclick=e=>{ lblOn=!lblOn; e.target.classList.toggle('on');
+  showGroup(labels,lblOn); showGroup(allSec,allOn&&lblOn); showGroup(xpsLbl,xpsOn&&lblOn); pierLabels(pierOn&&lblOn); };
+let pierOn=true; document.getElementById('pierBtn').onclick=e=>{ pierOn=!pierOn; showGroup(piers,pierOn); pierLabels(pierOn&&lblOn); e.target.classList.toggle('on'); };
 setCam('iso'); showGroup(allSec,false);
-let xpsOn=true; document.getElementById('xpsBtn').onclick=e=>{ xpsOn=!xpsOn; xpsG.visible=xpsOn; showGroup(xpsLbl,xpsOn); e.target.classList.toggle('on'); };
+let xpsOn=true; document.getElementById('xpsBtn').onclick=e=>{ xpsOn=!xpsOn; xpsG.visible=xpsOn; showGroup(xpsLbl,xpsOn&&lblOn); e.target.classList.toggle('on'); };
 
 function resize(){
   const w=host.clientWidth, h=host.clientHeight; if(!w||!h) return;
@@ -1633,7 +1640,7 @@ for(let i=0;i<N;i++){ pierR(...PP(PIER_MID,ang(i))); pierR(...PP(PIER_OUT,ang(i)
 [[200,200],[-200,200],[200,-200],[-200,-200]].forEach(([x,y])=>pierR(x,y));
 
 // ---- размеры в секторе 0 (сверху) ----
-const gd = el('g',{});
+const gd = el('g',{class:'dim'});
 [...RINGS,RP].forEach(r=>{
   const c=chord(r), [x1,y1]=PP(r,ang(0)), [x2,y2]=PP(r,ang(1));
   // размерная линия ось–ось чуть снаружи кольца
@@ -1683,6 +1690,7 @@ const setVB=()=>svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
 const fit=()=>{vb={x:-5700,y:-5700,w:11400,h:11400};setVB();};
 fit();
 document.getElementById('fitBtn').onclick=fit;
+document.getElementById('planLbl').onclick=e=>{ svg.classList.toggle('nolbl'); e.target.classList.toggle('on'); };
 document.getElementById('zoomSec').onclick=()=>{vb={x:-1700,y:-5000,w:3400,h:4300};setVB();};
 const wrapEl=document.getElementById('svgwrap');
 function toSvg(cx,cy){ const r=svg.getBoundingClientRect(); const s=Math.max(vb.w/r.width, vb.h/r.height);
