@@ -1377,7 +1377,8 @@
 // ===== Геометрия (метры) =====
 const N = 15, DA = 2*Math.PI/N;             // 15 лучей, 24°
 const T = 0.05, H = 0.15, FW = 0.15;         // толщина доски, высота на ребро, ширина полки
-const RAY0 = 0.12, RAY1 = 5.12, FL0 = 0.40;  // стенка от 0.12 до 5.12 (5000), полка подрезана у центра
+const RAY0 = 0.30, RAY1 = 5.06, FL0 = 0.06;  // полка (нижняя, плашмя) 0.06–5.06 = 5000, у центра заточена клином 24° и лежит на столе; стенка 0.30–5.06 (верхняя доска короче, не доходит до стола)
+const FL_TAN = Math.tan(DA/2*0.985), FL_FULL = (FW/2)/FL_TAN;   // до R≈0,35 полка — клин
 const RINGS = [1.179, 1.823, 2.467, 3.111, 3.755];   // шаг 644 по лучу: зазор 580 под плиту XPS
 const RP = 4.45;                             // обвязка по периметру
 const RPin = RP - T/Math.cos(DA/2);          // вторая доска обвязки, внутрь
@@ -1434,7 +1435,13 @@ for(let i=0;i<N;i++){
   const a = ang(i);
   const [x0,z0]=P(RAY0,a), [x1,z1]=P(RAY1,a), [f0x,f0z]=P(FL0,a);
   frame.add(along(box(RAY1-RAY0, H, T, mWeb), x0,z0,x1,z1, T+H/2));
-  frame.add(along(box(RAY1-FL0, T, FW, mFl), f0x,f0z,x1,z1, T/2));
+  { // полка-«карандаш»: клин у центра, дальше полная ширина 150
+    const ux=Math.cos(a), uz=Math.sin(a), vx=-uz, vz=ux;
+    const pts=[[FL0,-FL0*FL_TAN],[FL_FULL,-FW/2],[RAY1,-FW/2],[RAY1,FW/2],[FL_FULL,FW/2],[FL0,FL0*FL_TAN]]
+      .map(([r,o])=>new THREE.Vector2(r*ux+o*vx, r*uz+o*vz));
+    const g=new THREE.ExtrudeGeometry(new THREE.Shape(pts),{depth:T,bevelEnabled:false}); g.rotateX(Math.PI/2);
+    const m=new THREE.Mesh(g,mFl); m.position.y=T; m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g),edgeMat)); frame.add(m);
+  }
 }
 // перемычки
 function segAt(r, mat){
@@ -1447,8 +1454,8 @@ function segAt(r, mat){
 RINGS.forEach(r=>segAt(r,mSeg));
 segAt(RP, mPer); segAt(RPin, mPer);
 // центральный стол
-const stol = box(0.5, 0.15, 0.5, mStol); stol.position.set(0,-0.025,0); frame.add(stol);
-const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.055,0.5,24), M(0xd9d4cb)); pipe.position.y=-0.1; frame.add(pipe);
+const stol = box(0.5, 0.10, 0.5, mStol); stol.position.set(0,-0.05,0); frame.add(stol);   // 2 слоя по 50, верх = низ полок лучей
+const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.055,0.5,24), M(0xd9d4cb)); pipe.position.y=-0.2; frame.add(pipe);
 // опоры
 const GROUND = -0.5;                                 // стойка 2,0 м: 1,5 в грунте, 0,5 над грунтом
 function pier(x,z,top){ const h=top-GROUND+0.05; const m=box(0.06,h,0.04,mPier); m.position.set(x,top-h/2,z); piers.add(m); }
@@ -1546,9 +1553,9 @@ ringFaces.slice(1).forEach(([d1,d2])=>{
 // угол, луч, вылет, периметр
 { const [x,z]=P(0.9,ang(0)+DA/2); lbl('24°', x, Y, z, 'd'); }
 { const [x,z]=P(4.8,ang(3)); lbl('луч 5000: стенка 150×50 + полка 150×50 (Т)', x, Y, z); }
-{ const [x,z]=P(4.8,ang(0)); lbl('вылет за обвязку ≈ 670', x, Y, z, 'm'); }
+{ const [x,z]=P(4.8,ang(0)); lbl('вылет за обвязку ≈ '+fmt(RAY1-RP), x, Y, z, 'm'); }
 { const [x,z]=P(RP,ang(5)+DA/2); lbl('обвязка R 4450 в 2 доски', x, Y+0.1, z, 'r'); }
-{ lbl('стол 500×500 (6 досок по 500)', 0.1, -0.25, -0.45, 'm'); }
+{ lbl('стол 500×500 (6 досок по 500, 2 слоя); на нём нижние доски лучей, заточены клином', 0.1, -0.25, -0.45, 'm'); }
 { const [x,z]=P(PIER_MID,ang(6)); lbl('опора, R ≈ 2400', x, -0.45, z, 'm', piers); }
 { const [x,z]=P(PIER_OUT,ang(6)); lbl('опора, R ≈ 4400', x, -0.45, z, 'm', piers); }
 { const am=ang(1)+DA*0.5, r=4.25; lbl(`пара встречных укосин 40×60 ≈ ${fmt(braceLen[0],0)} · 7 пар = 14 шт.`, r*Math.cos(am), -0.3, r*Math.sin(am), 'd', piers); }
@@ -1621,7 +1628,9 @@ const g0 = el('g',{});
 }
 // полки (пунктир) и стенки лучей
 for(let i=0;i<N;i++){
-  el('polygon',{points:quad(FL0,RAY1,ang(i),FW),fill:'#f3e6d3',stroke:'#c99a66','stroke-width':5,'stroke-dasharray':'25 18'},g0);
+  { const a=ang(i), ux=Math.cos(a), uy=-Math.sin(a), nx=-uy, ny=ux;
+    const p=[[FL0,-FL0*FL_TAN],[FL_FULL,-FW/2],[RAY1,-FW/2],[RAY1,FW/2],[FL_FULL,FW/2],[FL0,FL0*FL_TAN]].map(([r,o])=>[S(r*ux+o*nx),S(r*uy+o*ny)].join(',')).join(' ');
+    el('polygon',{points:p,fill:'#f3e6d3',stroke:'#c99a66','stroke-width':5,'stroke-dasharray':'25 18'},g0); }
 }
 for(let i=0;i<N;i++){
   for(const r of RINGS) el('polygon',{points:segPoly(r,i),fill:'#e3c79b',stroke:'#7a5a36','stroke-width':4},g0);
@@ -1673,7 +1682,7 @@ const a2=ang(2);
   const [tx,ty]=PP(1.15,ang(0)+DA/2); txt('24°',tx,ty,70,{w:600,halo:true}); }
 // луч и вылет
 { const a=ang(4); const [x,y]=PP(5.25,a); txt('луч 5000 (Т: 150×50 + 150×50)',x,y,60,{rot:readable(-a*180/Math.PI),halo:true}); }
-{ const a=ang(0); const [x,y]=PP(4.80,a); txt('вылет ≈ 670',x-40,y,52,{anchor:'end',halo:true,fill:'#6b6862'}); }
+{ const a=ang(0); const [x,y]=PP(4.80,a); txt('вылет ≈ '+fmt(RAY1-RP),x-40,y,52,{anchor:'end',halo:true,fill:'#6b6862'}); }
 { txt('стол 500×500',0,330,55,{halo:true,fill:'#6b6862'}); }
 { const [x,y]=PP(PIER_MID,ang(8)); txt('опора R≈2400',x,y+80,50,{halo:true,fill:'#6b6862'});
   const [x2,y2]=PP(PIER_OUT,ang(8)); txt('опора R≈4400',x2,y2+80,50,{halo:true,fill:'#6b6862'}); }
@@ -1736,7 +1745,8 @@ document.addEventListener('keydown',e=>{ if(vplan.hidden) return; if(e.key==='+'
   </ul>
   <table>
     <tr><th>Деталь</th><th>Длина</th><th>Шт.</th></tr>
-    <tr><td>Лучи (собираются попарно в 15 Т-балок)</td><td>5000 мм</td><td>30</td></tr>
+    <tr><td>Лучи, нижняя доска (плашмя): у центра заточена клином 24° («карандаш», длина клина ~350 мм), ложится на стол</td><td>5000 мм</td><td>15</td></tr>
+    <tr><td>Лучи, верхняя доска (на ребро): короче, начинается от края стола</td><td>4760 мм</td><td>15</td></tr>
     <tr><td>Перемычки, кольцо R 1179</td><td>0,46 м</td><td>15</td></tr>
     <tr><td>Перемычки, кольцо R 1823</td><td>0,73 м</td><td>15</td></tr>
     <tr><td>Перемычки, кольцо R 2467</td><td>1,00 м</td><td>15</td></tr>
@@ -1753,8 +1763,9 @@ document.addEventListener('keydown',e=>{ if(vplan.hidden) return; if(e.key==='+'
   <h3>4. Сборка</h3>
   <ul>
     <li>Центральный стол 500×500 из 6 досок на 4 центральные стойки — <b>1 шт.</b></li>
+    <li>Заточка концов нижних досок лучей клином 24° — <b>15 шт.</b></li>
     <li>Сборка Т-образных лучей из 2 досок (одна на ребро, вторая плашмя снизу) на саморезах — <b>15 шт.</b></li>
-    <li>Укладка лучей на стойки и стол, крепление к пяткам — <b>15 шт.</b></li>
+    <li>Укладка лучей на стойки и стол (заточенные концы нижних досок сходятся на столе), крепление к пяткам — <b>15 шт.</b></li>
     <li>Монтаж перемычек, 5 колец с шагом 644 мм по лучу — <b>75 шт.</b></li>
     <li>Монтаж обвязки по периметру (R 4450, в две доски) — <b>30 шт.</b></li>
     <li>Крепёж: конструкционные саморезы — ~700 шт.</li>
